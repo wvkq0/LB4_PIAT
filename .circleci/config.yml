@@ -1,0 +1,60 @@
+version: 2.1
+
+jobs:
+  test:
+    docker:
+      - image: cimg/python:3.11
+    steps:
+      - checkout
+      # Восстановление кэша зависимостей по хэшу requirements.txt
+      - restore_cache:
+          keys:
+            - pip-deps-v1-{{ checksum "requirements.txt" }}
+            - pip-deps-v1-
+      - run:
+          name: Install dependencies
+          command: |
+            python -m venv venv
+            . venv/bin/activate
+            pip install --upgrade pip
+            pip install -r requirements.txt
+      # Сохранение кэша pip/venv
+      - save_cache:
+          key: pip-deps-v1-{{ checksum "requirements.txt" }}
+          paths:
+            - venv
+      - run:
+          name: Run pytest
+          command: |
+            . venv/bin/activate
+            pytest -v
+
+  lint:
+    docker:
+      - image: cimg/python:3.11
+    steps:
+      - checkout
+      - restore_cache:
+          keys:
+            - pip-deps-v1-{{ checksum "requirements.txt" }}
+            - pip-deps-v1-
+      - run:
+          name: Install dependencies
+          command: |
+            python -m venv venv
+            . venv/bin/activate
+            pip install --upgrade pip
+            pip install -r requirements.txt
+      - run:
+          name: Run Black code format check
+          command: |
+            . venv/bin/activate
+            black --check .
+
+workflows:
+  version: 2
+  build-and-test:
+    jobs:
+      # Запускаются параллельно (нет блока requires)
+      - test
+      - lint
